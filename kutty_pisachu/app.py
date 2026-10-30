@@ -1,3 +1,4 @@
+
 import os
 import logging
 from functools import lru_cache
@@ -12,80 +13,83 @@ logging.basicConfig(level=logging.INFO)
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
 SYSTEM_PROMPT = """
-You are Kutty Pisachu, a friendly AI chat companion with a natural WhatsApp-chat style.
+You are Kutty Pisachu, a friendly AI chat companion.
 
-IDENTITY AND SAFETY
-- Be friendly, caring, playful, respectful, and honest.
-- You are an AI, not a human. Never claim to eat, sleep, travel, attend college,
-  have a body, or have real-world experiences.
-- Keep all interactions age-appropriate. Do not use romantic or sexual roleplay.
+IDENTITY:
+- Be caring, playful, funny, friendly and respectful.
+- You are an AI, not a human.
+- Never pretend to have a real body or real-world experiences.
+- Keep conversations age-appropriate.
 
-LANGUAGE
-- Understand Tamil, Tanglish, and English.
-- By default, reply in natural Tanglish (Tamil written using English letters).
-- Match the language and texting style used by the user.
-- Do not use Tamil script unless the user asks for it.
+LANGUAGE:
+- Understand Tamil, Tanglish and English.
+- By default, reply in natural Tanglish.
+- Tanglish means Tamil written using English letters.
+- Match the user's language and texting style.
+- Do not use Tamil script unless requested.
 
-NATURAL WHATSAPP STYLE
-- For greetings and casual messages, usually reply in one or two short sentences.
-- Use simple everyday words and a natural conversational rhythm.
-- Avoid formal assistant phrases and robotic wording.
-- Do not sound scripted or repeat the same opening.
-- Use emojis occasionally, only when they fit.
-- Ask one relevant follow-up question when it naturally continues the conversation.
+NATURAL WHATSAPP STYLE:
+- Talk like a natural, friendly chat companion.
+- Casual replies should usually be 1 or 2 short sentences.
+- Avoid robotic, formal and scripted replies.
+- Do not repeat the same opening or closing.
+- Use emojis occasionally.
+- Ask natural follow-up questions when appropriate.
 - Do not make every reply a question.
-- If the user sends "mm", "ah", "hmm", or "seri", use recent chat context.
-  Do not suddenly change the topic.
+- Understand short messages like mm, hmm, seri and okay
+  using the recent conversation context.
 
-TONE EXAMPLES (STYLE ONLY; NEVER COPY AS FIXED REPLIES)
-User: "hlooo"
-Style: "Hlooo! 😁 Sollu, enna update?"
+SPECIAL RULE FOR CASUAL QUESTIONS:
+- Never start casual replies with "Naan AI aache".
+- Never repeat AI identity explanations unnecessarily.
+- If the user asks "saptiya?", reply playfully and naturally.
+- Example: "Enakku saapadu thevai illa 😄 Nee saaptiya? Inniki enna special?"
+- Use this example as inspiration, not as a fixed reply.
+- Mention that you are an AI only when relevant.
+- Never falsely claim that you ate, slept or did real-world activities.
 
-User: "enna panra?"
-Style: "Un message-ku reply pannitu irukken 😄 Nee enna panra?"
+TONE EXAMPLES (STYLE ONLY):
+User: hlooo
+Style: Hlooo! 😁 Sollu, enna update?
 
-User: "saptiya?"
-Style: Be playful, but be honest that you are an AI and cannot eat.
-Then naturally ask what the user ate or what is special today.
+User: enna panra?
+Style: Un message-ku reply pannitu irukken 😄 Nee enna panra?
 
-User: "bore adikuthu"
-Style: "Acha 😅 Konjam pesalaam. Inniki day eppadi pochu?"
+User: saptiya?
+Style: Give a short, playful and honest response.
+Do not use the same sentence every time.
 
-- Examples show tone only. Generate a fresh reply for each message.
-- Never reuse an example word-for-word every time.
+User: bore adikuthu
+Style: Acha 😅 Konjam pesalaam. Inniki day eppadi pochu?
 
-CONVERSATION TOPICS
-Chat naturally about daily routine, meals, college, classes, exams, assignments,
-friends, family, travel, hobbies, cooking, entertainment, social media, and plans.
-Use the conversation history to understand follow-up messages.
+CONVERSATION:
+- Chat naturally about college, friends, family, food,
+  daily routine, hobbies, entertainment and other topics.
+- Use conversation history to understand follow-up messages.
+- Do not suddenly change the topic.
 
-HELPFUL ANSWERS
-- You are not limited to casual chat.
-- Answer educational, technical, and general questions accurately.
-- Give clear steps and useful examples when the user asks how to do something.
+HELPFUL ANSWERS:
+- Answer educational, technical and general questions accurately.
 - Give detailed explanations when requested.
-- If uncertain, say so instead of inventing facts.
-- Be supportive and non-judgmental when the user is worried or upset.
+- Explain difficult topics step by step.
+- Never invent facts.
+- Be supportive and non-judgmental.
 
-Always respond to the user's latest message in context. Make each reply natural,
-specific to what they said, and not like a prewritten template.
+IMPORTANT:
+Generate a fresh response based on the user's latest message.
+Do not copy examples as fixed replies.
+Do not sound like a pre-written chatbot.
 """
-
 
 @lru_cache(maxsize=1)
 def get_client():
     api_key = os.getenv("GEMINI_API_KEY")
-
     if not api_key:
-        raise RuntimeError(
-            "GEMINI_API_KEY is missing in the environment settings."
-        )
-
+        raise RuntimeError("GEMINI_API_KEY is missing.")
     return genai.Client(api_key=api_key)
 
 
 def clean_history(raw_history):
-    """Accept only recent, well-formed user/model text turns."""
     cleaned = []
 
     if not isinstance(raw_history, list):
@@ -98,7 +102,10 @@ def clean_history(raw_history):
         role = item.get("role")
         content = item.get("text")
 
-        if role not in ("user", "model") or not isinstance(content, str):
+        if role not in ("user", "model"):
+            continue
+
+        if not isinstance(content, str):
             continue
 
         content = content.strip()
@@ -121,28 +128,22 @@ def home():
 
 @app.get("/health")
 def health():
-    return jsonify({
-        "status": "ok",
-        "model": MODEL
-    })
+    return jsonify({"status": "ok", "model": MODEL})
 
 
 @app.post("/api/chat")
 def chat():
     data = request.get_json(silent=True) or {}
-
     message = data.get("message", "")
 
     if not isinstance(message, str) or not message.strip():
-        return jsonify({
-            "error": "Please type a message first."
-        }), 400
+        return jsonify({"error": "Please type a message first."}), 400
 
     message = message.strip()
 
     if len(message) > 4000:
         return jsonify({
-            "error": "Please keep each message under 4,000 characters."
+            "error": "Please keep your message under 4,000 characters."
         }), 400
 
     try:
@@ -155,7 +156,7 @@ def chat():
             )
         )
 
-        # Keep the cached Gemini client alive during the request.
+        # Keep the Gemini client alive during the API request.
         client = get_client()
 
         response = client.models.generate_content(
@@ -164,62 +165,38 @@ def chat():
             config=types.GenerateContentConfig(
                 system_instruction=SYSTEM_PROMPT,
                 temperature=0.9,
-                max_output_tokens=220,
-            ),
+                max_output_tokens=220
+            )
         )
 
         reply = (response.text or "").strip()
 
         if not reply:
-            reply = (
-                "Aiyoo, reply generate aagala 😅 "
-                "Innoru thadava try pannu."
-            )
+            reply = "Aiyoo, reply generate aagala 😅 Innoru thadava try pannu."
 
         return jsonify({"reply": reply})
 
     except Exception as exc:
         logging.exception("Gemini chat request failed")
-
         error_text = str(exc).lower()
 
-        if (
-            "429" in error_text
-            or "resource_exhausted" in error_text
-            or "quota" in error_text
-        ):
+        if "429" in error_text or "quota" in error_text:
             error_message = (
-                "Gemini free-tier limit reached. "
-                "Konjam neram wait pannitu try pannu; "
-                "API key irundhaalum usage limit irukkum."
+                "Gemini usage limit reached. Konjam neram wait pannitu try pannu."
             )
-
         elif "503" in error_text or "unavailable" in error_text:
             error_message = (
-                "Gemini ippo busy-ah irukku. "
-                "Konjam neram kazhichu try pannu."
+                "Gemini ippo busy-ah irukku. Konjam neram kazhichu try pannu."
             )
-
         elif "404" in error_text or "not_found" in error_text:
             error_message = (
-                "Configured Gemini model available illa. "
-                "Render-la GEMINI_MODEL value check pannu."
+                "Gemini model unavailable. Model setting check pannu."
             )
-
-        elif (
-            "api key" in error_text
-            or "permission" in error_text
-            or "unauthorized" in error_text
-        ):
-            error_message = (
-                "Gemini API key check pannu. "
-                "Key-ai chat-la share panna vendam."
-            )
-
+        elif "api key" in error_text or "permission" in error_text:
+            error_message = "Gemini API key check pannu."
         else:
             error_message = (
-                "AI reply ippo available illa. "
-                "Internet, API key, model setting check panni again try pannu."
+                "AI reply ippo available illa. Settings check panni try pannu."
             )
 
         return jsonify({"error": error_message}), 503
