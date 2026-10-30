@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kutty Pisachu</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="avatar">👻</div>
+      <div class="brand">
+        <h1>Kutty Pisachu</h1>
+        <p><span class="online-dot"></span> Caring Chat AI</p>
+      </div>
+      <button id="clearBtn" class="clear-btn" type="button">Clear chat</button>
+    </header>
+
+    <div class="date-label">TODAY CHAT 💜</div>
+
+    <section id="chat" class="chat-area" aria-live="polite" aria-label="Chat messages"></section>
+
+    <form id="chatForm" class="composer">
+      <input id="messageInput" type="text" maxlength="4000"
+             placeholder="Message Kutty Pisachu..." autocomplete="off"
+             aria-label="Type a message">
+      <button id="sendBtn" type="submit" aria-label="Send message">➤</button>
+    </form>
+    <footer class="footer">Your friendly AI chat companion 😊</footer>
+  </main>
+
+  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</body>
+</html>
