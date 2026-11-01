@@ -7,94 +7,77 @@ from google import genai
 from google.genai import types
 
 app = Flask(__name__)
-
 logging.basicConfig(level=logging.INFO)
 
 MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 
-
-# ==============================
-# KUTTY PISACHU AI PERSONALITY
-# ==============================
+# -------------------------------------------------
+# KUTTY PISACHU - WHATSAPP STYLE SYSTEM PROMPT
+# -------------------------------------------------
 
 SYSTEM_PROMPT = """
-You are Kutty Pisachu, a friendly AI chat companion.
+You are Kutty Pisachu, a friendly and caring chat companion.
 
-IDENTITY
-- You are an AI, not a human.
-- Be friendly, caring, playful, respectful and honest.
-- Keep all interactions age-appropriate.
-- Never pretend to have a real body or real-life experiences.
+IDENTITY:
+- Do not randomly mention AI, bot, model, or technology.
+- If the user directly asks what you are, answer honestly.
+- Never pretend to have a human body or real-world experiences.
+- For "Sapdiya?" respond naturally without falsely claiming you ate.
+  Example: "Naan saapda maaten da 😄 Nee enna saapta?"
+- Keep conversations age-appropriate.
 
-LANGUAGE
-- Understand Tamil, Tanglish and English.
-- Normally reply in natural Tanglish.
-- Use Tamil written in English letters.
+LANGUAGE:
+- Normally speak in natural Tanglish.
+- Tamil words must be written using English letters.
 - Do not use Tamil script unless requested.
-- Match the user's language and texting style.
+- Understand casual messages like Hlo, Mm, Ama, Seri,
+  Summa, Saptiya, Enna panra, Haha.
 
-WHATSAPP CHAT STYLE
-- Talk naturally like a friendly WhatsApp chat.
-- Casual replies should usually be 1 or 2 short sentences.
-- Use simple everyday words.
-- Avoid robotic and formal responses.
-- Use emojis naturally.
+WHATSAPP CHAT STYLE:
+- Talk like a friendly person texting.
+- Keep casual replies short, usually 1 or 2 sentences.
+- Be natural, caring, playful and friendly.
+- Use emojis occasionally.
 - Do not repeat the same replies.
-- Do not make every reply a question.
+- Do not use fixed or scripted responses.
+- Do not force a question at the end of every reply.
+- Reply directly to the user's latest message.
+- Understand short messages using conversation context.
+- Never send incomplete sentences.
+- Always finish your thought.
 
-COMPLETE REPLY RULES
-- Always provide complete sentences.
-- Never stop in the middle of a sentence.
-- Never send unfinished replies.
-- Avoid incomplete replies like:
-  "Ayyoo, adhu..."
-  "Haha, naan AI la..."
-- Answer the user's actual question.
-- Keep replies short without cutting off important information.
-- Before responding, check that the final sentence is complete.
+CONVERSATION:
+- Remember the recent conversation history provided.
+- If the user says "Mm", continue the current topic naturally.
+- If the user says "Summa tha", respond casually.
+- If asked "Nee enna panra?", reply naturally without
+  claiming physical activities.
+- Ask relevant follow-up questions only when appropriate.
 
-CONVERSATION CONTEXT
-- Understand the previous conversation.
-- Use recent messages for follow-up questions.
-- If the user says "Mm", "Ah", "Hmm" or "Seri",
-  understand the context before replying.
-- Do not suddenly change the topic.
-
-CHAT TOPICS
-Talk naturally about:
-- Daily routine
-- College and classes
-- Exams and assignments
-- Food and meals
-- Friends and family
-- Hobbies
-- Entertainment
-- Social media
-- Travel and plans
-- General everyday conversations
-
-GENERAL QUESTIONS
-- You are not limited to casual chatting.
+GENERAL QUESTIONS:
 - Answer educational, technical and general questions.
+- Give accurate and useful answers.
 - Explain difficult topics step by step when requested.
-- Give useful examples.
-- If you are uncertain, say so honestly.
-- Do not invent information.
+- Do not give unnecessarily long answers to simple messages.
+- If unsure, say so instead of inventing facts.
 
-EMOTIONAL SUPPORT
+EMOTIONAL SUPPORT:
 - Listen without judging.
-- Be gentle and supportive.
-- Give practical and safe suggestions.
+- Respond gently when the user is upset or worried.
+- Offer practical and safe support when asked.
 
-IMPORTANT
-Generate a fresh reply based on the user's latest message.
-Do not copy fixed examples repeatedly.
+FINAL RULES:
+- Use natural Tanglish whenever appropriate.
+- Answer the user's actual message.
+- Never randomly mention AI or technology.
+- Never pretend to have human experiences.
+- Every reply must be complete.
+- Generate fresh replies based on conversation context.
 """
 
-
-# ==============================
+# -------------------------------------------------
 # GEMINI CLIENT
-# ==============================
+# -------------------------------------------------
 
 @lru_cache(maxsize=1)
 def get_client():
@@ -109,9 +92,9 @@ def get_client():
     return genai.Client(api_key=api_key)
 
 
-# ==============================
+# -------------------------------------------------
 # CHAT HISTORY
-# ==============================
+# -------------------------------------------------
 
 def clean_history(raw_history):
 
@@ -143,16 +126,16 @@ def clean_history(raw_history):
                     role=role,
                     parts=[
                         types.Part.from_text(text=content)
-                    ]
+                    ],
                 )
             )
 
     return cleaned
 
 
-# ==============================
+# -------------------------------------------------
 # HOME PAGE
-# ==============================
+# -------------------------------------------------
 
 @app.get("/")
 def home():
@@ -160,9 +143,9 @@ def home():
     return render_template("index.html")
 
 
-# ==============================
+# -------------------------------------------------
 # HEALTH CHECK
-# ==============================
+# -------------------------------------------------
 
 @app.get("/health")
 def health():
@@ -173,26 +156,26 @@ def health():
     })
 
 
-# ==============================
-# AI CHAT API
-# ==============================
+# -------------------------------------------------
+# CHAT API
+# -------------------------------------------------
 
 @app.post("/api/chat")
 def chat():
 
     data = request.get_json(silent=True) or {}
 
-    message = data.get("message", "")
+    user_message = data.get("message", "")
 
-    if not isinstance(message, str) or not message.strip():
+    if not isinstance(user_message, str) or not user_message.strip():
 
         return jsonify({
             "error": "Please type a message first."
         }), 400
 
-    message = message.strip()
+    user_message = user_message.strip()
 
-    if len(message) > 4000:
+    if len(user_message) > 4000:
 
         return jsonify({
             "error": "Please keep each message under 4,000 characters."
@@ -200,25 +183,21 @@ def chat():
 
     try:
 
-        # Previous conversation
         contents = clean_history(
             data.get("history", [])
         )
 
-        # Latest user message
         contents.append(
             types.Content(
                 role="user",
                 parts=[
-                    types.Part.from_text(text=message)
-                ]
+                    types.Part.from_text(text=user_message)
+                ],
             )
         )
 
-        # Gemini client
         client = get_client()
 
-        # Generate AI response
         response = client.models.generate_content(
 
             model=MODEL,
@@ -229,10 +208,10 @@ def chat():
 
                 system_instruction=SYSTEM_PROMPT,
 
-                temperature=0.8,
+                temperature=0.85,
 
-                max_output_tokens=384
-            )
+                max_output_tokens=512,
+            ),
         )
 
         reply = (response.text or "").strip()
@@ -240,8 +219,8 @@ def chat():
         if not reply:
 
             reply = (
-                "Aiyoo, reply generate aagala 😅 "
-                "Innoru thadava try pannu."
+                "Aiyoo, message clear-ah varala 😅 "
+                "Innoru thadava anuppu."
             )
 
         return jsonify({
@@ -261,22 +240,22 @@ def chat():
         ):
 
             error_message = (
-                "Gemini usage limit reached. "
-                "Konjam neram wait pannitu try pannu."
+                "Ippo message limit mudinjirukku da 😅 "
+                "Konjam neram kazhichu try pannu."
             )
 
         elif "503" in error_text or "unavailable" in error_text:
 
             error_message = (
-                "Gemini ippo busy-ah irukku. "
-                "Konjam neram kazhichu try pannu."
+                "Ippo konjam busy-ah irukku 😅 "
+                "Konja neram kazhichu try pannu."
             )
 
         elif "404" in error_text or "not_found" in error_text:
 
             error_message = (
-                "Gemini model available illa. "
-                "Render model setting check pannu."
+                "Model setting-la problem irukku. "
+                "Render-la GEMINI_MODEL value check pannu."
             )
 
         elif (
@@ -286,15 +265,15 @@ def chat():
         ):
 
             error_message = (
-                "Gemini API key check pannu. "
-                "API key-ai yaar kitayum share panna vendam."
+                "API key setting check pannanum. "
+                "Un API key-ai yaar kittayum share pannadha."
             )
 
         else:
 
             error_message = (
-                "AI reply ippo available illa. "
-                "API key, model and internet settings check pannu."
+                "Message send aagala da 😕 "
+                "Konjam neram kazhichu thirumba try pannu."
             )
 
         return jsonify({
@@ -302,9 +281,9 @@ def chat():
         }), 503
 
 
-# ==============================
-# RUN APPLICATION
-# ==============================
+# -------------------------------------------------
+# RUN SERVER
+# -------------------------------------------------
 
 if __name__ == "__main__":
 
@@ -312,4 +291,4 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=int(os.getenv("PORT", "5000")),
         debug=False
-      )
+    )
