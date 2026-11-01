@@ -4,11 +4,16 @@ const input = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 const clearBtn = document.getElementById("clearBtn");
 
-// Previous successful turns are kept while this page remains open.
+// Store recent conversation for context
 let conversationHistory = [];
 
+const MAX_HISTORY = 16;
+
 function currentTime() {
-  return new Intl.DateTimeFormat([], { hour: "numeric", minute: "2-digit" }).format(new Date());
+  return new Intl.DateTimeFormat([], {
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date());
 }
 
 function scrollToBottom() {
@@ -21,7 +26,7 @@ function addMessage(text, who = "bot") {
 
   const bubble = document.createElement("div");
   bubble.className = "bubble";
-  bubble.textContent = text;
+  bubble.textContent = String(text);
 
   const time = document.createElement("div");
   time.className = "message-time";
@@ -30,6 +35,7 @@ function addMessage(text, who = "bot") {
   row.appendChild(bubble);
   row.appendChild(time);
   chat.appendChild(row);
+
   scrollToBottom();
   return row;
 }
@@ -38,11 +44,14 @@ function showTyping() {
   const row = document.createElement("div");
   row.className = "message-row bot";
   row.id = "typingIndicator";
+
   const bubble = document.createElement("div");
   bubble.className = "bubble typing";
-  bubble.textContent = "Kutty Pisachu is typing...";
+  bubble.textContent = "Typing...";
+
   row.appendChild(bubble);
   chat.appendChild(row);
+
   scrollToBottom();
 }
 
@@ -50,58 +59,103 @@ function removeTyping() {
   document.getElementById("typingIndicator")?.remove();
 }
 
+function saveConversation(userMessage, botReply) {
+  conversationHistory.push(
+    { role: "user", text: userMessage },
+    { role: "model", text: botReply }
+  );
+
+  conversationHistory =
+    conversationHistory.slice(-MAX_HISTORY);
+}
+
+async function sendMessage(message) {
+  const response = await fetch("/api/chat", {
+    method: "POST",
+
+    headers: {
+      "Content-Type": "application/json"
+    },
+
+    body: JSON.stringify({
+      message: message,
+      history: conversationHistory.slice(-MAX_HISTORY)
+    })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.error || "Message send aagala. Again try pannu 😅"
+    );
+  }
+
+  const reply = data.reply || data.response;
+
+  if (typeof reply !== "string" || !reply.trim()) {
+    throw new Error("Reply varala da 😅 Innoru thadava try pannu.");
+  }
+
+  return reply.trim();
+}
+
+// Send message
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
+
   const message = input.value.trim();
-  if (!message) return;
+
+  if (!message || sendBtn.disabled) return;
 
   addMessage(message, "user");
+
   input.value = "";
-  input.focus();
   sendBtn.disabled = true;
+
   showTyping();
 
   try {
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message,
-        history: conversationHistory.slice(-12)
-      })
-    });
+    const reply = await sendMessage(message);
 
-    const data = await response.json();
     removeTyping();
 
-    if (!response.ok) {
-      addMessage(data.error || "AI reply available illa. Again try pannu 😅", "bot");
-      return;
-    }
-
-    const reply = data.reply || data.response || "Hmm, reply varala 😅";
+    // Display the complete response received from backend
     addMessage(reply, "bot");
 
-    // Save only successful exchanges for context in the next request.
-    conversationHistory.push(
-      { role: "user", text: message },
-      { role: "model", text: reply }
-    );
-    conversationHistory = conversationHistory.slice(-12);
+    // Save successful conversation for future context
+    saveConversation(message, reply);
+
   } catch (error) {
     removeTyping();
-    addMessage("Internet connection check panni again try pannu macha 😅", "bot");
+
+    addMessage(
+      error.message || "Internet connection check pannu 😅",
+      "bot"
+    );
+
   } finally {
     sendBtn.disabled = false;
     input.focus();
   }
 });
 
+// Clear conversation
 clearBtn.addEventListener("click", () => {
   conversationHistory = [];
+
   chat.replaceChildren();
-  addMessage("Hlooo 😁 Sollu, enna panra?", "bot");
+
+  addMessage(
+    "Hlooo 😁 Sollu, enna panra?",
+    "bot"
+  );
+
   input.focus();
 });
 
-addMessage("Hlooo 😁 Sollu, enna panra?", "bot");
+// Initial greeting
+addMessage(
+  "Hlooo 😁 Sollu, enna panra?",
+  "bot"
+);
