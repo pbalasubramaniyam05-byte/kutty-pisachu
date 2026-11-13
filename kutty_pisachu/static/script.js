@@ -147,7 +147,7 @@ clearBtn.addEventListener("click", () => {
   chat.replaceChildren();
 
   addMessage(
-    "Hlooo 😁 Sollu, enna panra?",
+    "Hlooo 😊",
     "bot"
   );
 
