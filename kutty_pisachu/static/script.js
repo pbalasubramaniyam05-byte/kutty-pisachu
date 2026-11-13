@@ -156,6 +156,6 @@ clearBtn.addEventListener("click", () => {
 
 // Initial greeting
 addMessage(
-  "Hlooo 😁 Sollu, enna panra?",
+  "Hlooo 😊",
   "bot"
 );
